@@ -6,7 +6,7 @@ from groq import AsyncGroq
 # --- UI CONFIGURATION ---
 st.set_page_config(page_title="PHASE-LOCK ZERO", page_icon="⚡", layout="wide")
 
-# Industrial "Flat Terminal" CSS - Optimized for Raipur Cluster Monitoring
+# Industrial "Flat Terminal" CSS
 st.markdown("""
     <style>
     .stApp { background-color: #000000; }
@@ -65,13 +65,15 @@ with st.sidebar:
     st.markdown("🌐 **STATUS:** `AUTHENTICATED`")
     hz_target = st.slider("Clock Frequency (Hz)", 5, 60, 20)
     
-    # Corrected IDs for May 2026 Groq Production
+    # Unified Production Model IDs
     model_mode = st.selectbox("Engine Mode", [
-        "deepseek-r1-distill-qwen-32b", 
-        "deepseek-r1-distill-llama-70b"
+        "deepseek-v3", 
+        "deepseek-r1",
+        "llama-3.3-70b-versatile"
     ])
     
-    max_drift = st.number_input("Max Drift Threshold (s)", value=0.6, step=0.01)
+    max_drift = st.number_input("Max Drift Threshold (s)", value=2.0, step=0.1)
+    st.caption("Note: R1 models require higher drift thresholds due to 'Thinking' time.")
 
 # --- THE GOVERNOR ENGINE ---
 class StreamlitPLL:
@@ -83,7 +85,7 @@ class StreamlitPLL:
         self.drift_acc = 0.0
 
     async def run(self, prompt, display_area, metric_area):
-        start_time = time.perf_counter()
+        start_time = None
         token_count = 0
         full_response = ""
         
@@ -96,6 +98,10 @@ class StreamlitPLL:
             )
 
             async for chunk in stream:
+                # Mark start_time only when the first token actually arrives
+                if start_time is None:
+                    start_time = time.perf_counter()
+
                 token = chunk.choices[0].delta.content
                 if token:
                     token_count += 1
@@ -105,7 +111,6 @@ class StreamlitPLL:
                     scheduled = token_count * self.interval
                     phase_error = scheduled - actual
                     
-                    # Frequency Governor
                     if phase_error > 0:
                         await asyncio.sleep(phase_error)
                     else:
@@ -120,9 +125,8 @@ class StreamlitPLL:
                     full_response += token
                     display_area.markdown(f'<div class="terminal-box">{full_response}█</div>', unsafe_allow_html=True)
                     
-                    # Metric Logic
-                    uptime = time.perf_counter() - start_time
-                    stability = (1 - (self.drift_acc / (uptime if uptime > 0 else 1))) * 100
+                    # Metrics
+                    stability = (1 - (self.drift_acc / (actual if actual > 0 else 1))) * 100
                     metric_area.metric("Clock Stability", f"{max(0, stability):.2f}%", f"-{self.drift_acc:.3f}s Drift")
 
         except Exception as e:
