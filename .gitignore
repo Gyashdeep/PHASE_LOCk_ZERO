@@ -1,0 +1,11 @@
+# Credentials
+.env
+*.key
+
+# Python
+__pycache__/
+venv/
+.pytest_cache/
+
+# Streamlit
+.streamlit/config.toml
