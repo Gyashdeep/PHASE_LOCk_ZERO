@@ -65,15 +65,15 @@ with st.sidebar:
     st.markdown("🌐 **STATUS:** `AUTHENTICATED`")
     hz_target = st.slider("Clock Frequency (Hz)", 5, 60, 20)
     
-    # Unified Production Model IDs
+    # MAY 2026 ACTIVE PRODUCTION IDS
     model_mode = st.selectbox("Engine Mode", [
-        "deepseek-v3", 
-        "deepseek-r1",
-        "llama-3.3-70b-versatile"
+        "deepseek-v4-flash", # Sub-millisecond inference
+        "deepseek-v4-pro",   # 1.6T parameter reasoning
+        "llama-3.3-70b-versatile" # Stable fail-safe
     ])
     
     max_drift = st.number_input("Max Drift Threshold (s)", value=2.0, step=0.1)
-    st.caption("Note: R1 models require higher drift thresholds due to 'Thinking' time.")
+    st.caption("Using DeepSeek-V4 (Release 26.04.24)")
 
 # --- THE GOVERNOR ENGINE ---
 class StreamlitPLL:
@@ -98,7 +98,6 @@ class StreamlitPLL:
             )
 
             async for chunk in stream:
-                # Mark start_time only when the first token actually arrives
                 if start_time is None:
                     start_time = time.perf_counter()
 
@@ -116,7 +115,6 @@ class StreamlitPLL:
                     else:
                         self.drift_acc += abs(phase_error)
 
-                    # --- SAFETY GATE ---
                     if self.drift_acc > self.limit:
                         st.error("PHASE LOCK LOST: EMERGENCY SHUTDOWN")
                         return
