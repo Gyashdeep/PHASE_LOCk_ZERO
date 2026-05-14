@@ -42,7 +42,10 @@ st.markdown("""
         border-radius: 0px;
         width: 100%;
     }
-    .stButton>button:hover { background-color: #26ff4e; color: #000000; }
+    .stButton>button:hover {
+        background-color: #26ff4e;
+        color: #000000;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -64,13 +67,13 @@ with st.sidebar:
     
     # MAY 2026 VERIFIED PRODUCTION IDs
     model_mode = st.selectbox("Engine Mode", [
-        "meta-llama/llama-4-scout-17b-16e-instruct", # Fastest (~750 TPS)
-        "openai/gpt-oss-120b",                       # Highest Reasoning
-        "llama-3.3-70b-versatile"                   # Stable Fallback
+        "meta-llama/llama-4-scout-17b-16e-instruct", # Optimized for Speed
+        "openai/gpt-oss-120b",                       # High Reasoning
+        "llama-3.3-70b-versatile"                    # Fallback
     ])
     
     max_drift = st.number_input("Max Drift Threshold (s)", value=2.0, step=0.1)
-    st.caption("Deployment Node: Raipur-Cluster-Control")
+    st.caption("Deployment Node: USA-East-Edge-Control")
 
 # --- THE GOVERNOR ENGINE ---
 class StreamlitPLL:
@@ -128,7 +131,8 @@ class StreamlitPLL:
             st.error(f"System Fault: {e}")
 
 # --- MAIN INTERFACE ---
-prompt_input = st.text_area("Instruction", "Generate real-time GPU thermal telemetry for Raipur cluster.")
+# Replaced Raipur context with USA cluster instructions
+prompt_input = st.text_area("Instruction", "Generate real-time GPU thermal telemetry for the USA-East-Coast Datacenter.")
 
 if st.button("INITIATE PHASE LOCK"):
     m_col1, m_col2 = st.columns(2)
