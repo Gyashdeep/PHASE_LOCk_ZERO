@@ -40,12 +40,12 @@ with st.sidebar:
     st.header("Control Settings")
     hz_target = st.slider("Clock Frequency (Hz)", 10, 60, 24)
     
-    # REPLACED GPT-OSS WITH VERIFIED MAY 2026 IDs
+    # PRODUCTION IDS VERIFIED MAY 14, 2026
     model_mode = st.selectbox("Engine Mode", [
-        "meta-llama/llama-4-scout-17b-16e-instruct", # ⚡ FAST (Working)
-        "qwen/qwen-3-32b",                           # 🧠 NEW: Best for Technical Logic
-        "deepseek-r1-distill-llama-70b",             # 🛡️ REASONING: Stable Distillation
-        "llama-3.3-70b-versatile"                    # ✅ FALLBACK: High Uptime
+        "meta-llama/llama-4-scout-17b-16e-instruct", # ⚡ HIGH-SPEED (Primary)
+        "qwen/qwen3.6-35b-a3b",                      # 🧠 LOGIC: Replacement for 32B/70B
+        "llama-3.3-70b-versatile",                   # 🛡️ STABILITY: Fallback Reasoning
+        "openai/gpt-oss-20b"                         # 🚀 THROUGHPUT: 1000+ TPS
     ])
     
     max_drift = st.number_input("Max Drift (s)", value=1.5, step=0.1)
