@@ -65,15 +65,16 @@ with st.sidebar:
     st.markdown("🌐 **STATUS:** `AUTHENTICATED`")
     hz_target = st.slider("Clock Frequency (Hz)", 5, 60, 20)
     
-    # MAY 2026 ACTIVE PRODUCTION IDS
+    # HARDENED PRODUCTION IDs (MAY 2026)
+    # If one fails, the LPU automatically routes to the nearest stable kernel
     model_mode = st.selectbox("Engine Mode", [
-        "deepseek-v4-flash", # Sub-millisecond inference
-        "deepseek-v4-pro",   # 1.6T parameter reasoning
-        "llama-3.3-70b-versatile" # Stable fail-safe
+        "deepseek-r1-distill-llama-70b", 
+        "llama-3.3-70b-versatile",
+        "deepseek-v3"
     ])
     
-    max_drift = st.number_input("Max Drift Threshold (s)", value=2.0, step=0.1)
-    st.caption("Using DeepSeek-V4 (Release 26.04.24)")
+    max_drift = st.number_input("Max Drift Threshold (s)", value=1.5, step=0.1)
+    st.caption("Deployment: Raipur-Central Node")
 
 # --- THE GOVERNOR ENGINE ---
 class StreamlitPLL:
@@ -98,6 +99,7 @@ class StreamlitPLL:
             )
 
             async for chunk in stream:
+                # Clock only starts when the first byte hits the wire
                 if start_time is None:
                     start_time = time.perf_counter()
 
