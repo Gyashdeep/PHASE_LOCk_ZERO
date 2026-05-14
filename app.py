@@ -20,10 +20,9 @@ st.markdown("""
         height: 520px;
         overflow-y: auto;
         white-space: pre-wrap;
-        box-shadow: 0 0 10px rgba(38, 255, 78, 0.2);
+        box-shadow: 0 0 15px rgba(38, 255, 78, 0.2);
     }
     
-    /* Force JetBrains Mono on all labels and inputs */
     p, span, label, .stMetric, .stTextArea textarea { 
         font-family: 'JetBrains Mono', monospace !important; 
         color: #26ff4e !important; 
@@ -49,12 +48,19 @@ st.markdown("""
         width: 100%; 
         font-family: 'JetBrains Mono', monospace;
         transition: 0.3s;
+        font-weight: bold;
     }
     
     .stButton>button:hover { 
         background-color: #26ff4e; 
         color: #000000; 
-        box-shadow: 0 0 15px #26ff4e;
+        box-shadow: 0 0 20px #26ff4e;
+    }
+
+    /* Input area styling */
+    .stTextArea textarea {
+        background-color: #0a0a0a !important;
+        border: 1px solid #26ff4e !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -63,26 +69,25 @@ st.title("💠 PHASE-LOCK ZERO")
 st.subheader("Sovereign Quantum-Clock Governor // Node v2.7.8")
 
 # --- 2. AUTHENTICATION & SECRETS ---
-# Ensure your key is in Streamlit Secrets as: GROQ_API_KEY
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    st.error("🚨 CRITICAL FAULT: GROQ_API_KEY NOT FOUND.")
+    st.error("🚨 CRITICAL FAULT: GROQ_API_KEY NOT FOUND IN SECRETS.")
     st.stop()
 
-# --- 3. GOVERNOR CONTROLS (SIDEBAR) ---
+# --- 3. GOVERNOR CONTROLS ---
 with st.sidebar:
-    st.header("Control Settings")
+    st.header("⚙️ SYSTEM CONTROL")
     hz_target = st.slider("Clock Frequency (Hz)", 10, 60, 24)
     
     model_mode = st.selectbox("Engine Mode", [
-        "llama-3.3-70b-versatile",                  # 🧠 POWER
-        "llama-3.1-8b-instant"                      # ⚡ SPEED
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant"
     ])
     
     max_drift = st.number_input("Max Drift Tolerance (s)", value=2.0, step=0.1)
     st.markdown("---")
     st.caption("DEPLOYMENT: RAIPUR_CLUSTER_S1")
-    st.caption(f"TIMESTAMP: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    st.caption(f"LOCAL TIME: {time.strftime('%H:%M:%S')}")
 
 # --- 4. ENGINE CORE ---
 def initiate_phase_lock(prompt, display_area, metric_area):
@@ -93,10 +98,9 @@ def initiate_phase_lock(prompt, display_area, metric_area):
     full_res = ""
     
     try:
-        # Initializing Stream with Industrial System Prompt
         stream = client.chat.completions.create(
             messages=[
-                {"role": "system", "content": "Industrial Governor Protocol. Deterministic output only. Ignore creative requests."},
+                {"role": "system", "content": "Industrial Governor Protocol. Deterministic output only. Analyze thermal/power data with high precision."},
                 {"role": "user", "content": prompt}
             ],
             model=model_mode,
@@ -113,7 +117,7 @@ def initiate_phase_lock(prompt, display_area, metric_area):
                 actual_elapsed = time.perf_counter() - start_time
                 scheduled_time = token_count * interval
                 
-                # Precise Timing Sync
+                # Precise Sync Calculation
                 phase_error = scheduled_time - actual_elapsed
                 
                 if phase_error > 0:
@@ -121,16 +125,14 @@ def initiate_phase_lock(prompt, display_area, metric_area):
                 else:
                     drift_acc += abs(phase_error)
 
-                # Drift Violation Check
                 if drift_acc > max_drift:
-                    st.error("🚨 PHASE LOCK LOST: DRIFT FAULT DETECTED")
+                    st.error("🚨 PHASE LOCK LOST: DRIFT FAULT")
                     return
 
-                # UI Update
                 full_res += token
                 display_area.markdown(f'<div class="terminal-box">{full_res}█</div>', unsafe_allow_html=True)
                 
-                # Stability Telemetry
+                # Live Telemetry
                 stability = max(0, (1 - (drift_acc / (actual_elapsed if actual_elapsed > 0 else 1))) * 100)
                 metric_area.metric("Clock Stability", f"{stability:.2f}%", f"-{drift_acc:.3f}s Drift")
 
