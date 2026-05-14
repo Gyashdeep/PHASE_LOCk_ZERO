@@ -1,20 +1,16 @@
 import streamlit as st
-import asyncio
 import time
-from groq import AsyncGroq
+from groq import Groq
 
-# --- 1. SYSTEM CONFIGURATION ---
+# --- 1. INDUSTRIAL TERMINAL CONFIGURATION ---
 st.set_page_config(page_title="PHASE-LOCK ZERO", page_icon="💠", layout="wide")
 
-if 'is_running' not in st.session_state:
-    st.session_state.is_running = False
-
-# Added Google Font Import for JetBrains Mono to ensure it works on all devices
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
     
     .stApp { background-color: #000000; }
+    
     .terminal-box {
         background-color: #000000;
         color: #26ff4e;
@@ -24,121 +20,136 @@ st.markdown("""
         height: 520px;
         overflow-y: auto;
         white-space: pre-wrap;
+        box-shadow: 0 0 10px rgba(38, 255, 78, 0.2);
     }
+    
+    /* Force JetBrains Mono on all labels and inputs */
     p, span, label, .stMetric, .stTextArea textarea { 
         font-family: 'JetBrains Mono', monospace !important; 
         color: #26ff4e !important; 
     }
-    .stMetric { background-color: #0d0d0d; border: 1px solid #26ff4e; padding: 10px; }
-    h1, h2, h3 { color: #26ff4e !important; text-transform: uppercase; letter-spacing: 2px; }
-    .stButton>button { 
-        background-color: #000000; color: #26ff4e; 
-        border: 1px solid #26ff4e; border-radius: 0px; width: 100%; 
-        font-family: 'JetBrains Mono', monospace;
+    
+    .stMetric { 
+        background-color: #0d0d0d; 
+        border: 1px solid #26ff4e; 
+        padding: 10px; 
     }
-    .stButton>button:hover { background-color: #26ff4e; color: #000000; }
-    .stButton>button:disabled { border-color: #333; color: #333; }
+    
+    h1, h2, h3 { 
+        color: #26ff4e !important; 
+        text-transform: uppercase; 
+        letter-spacing: 2px; 
+    }
+    
+    .stButton>button { 
+        background-color: #000000; 
+        color: #26ff4e; 
+        border: 1px solid #26ff4e; 
+        border-radius: 0px; 
+        width: 100%; 
+        font-family: 'JetBrains Mono', monospace;
+        transition: 0.3s;
+    }
+    
+    .stButton>button:hover { 
+        background-color: #26ff4e; 
+        color: #000000; 
+        box-shadow: 0 0 15px #26ff4e;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("💠 PHASE-LOCK ZERO")
-st.subheader("Sovereign Quantum-Clock Governor // Node v2.7.6")
+st.subheader("Sovereign Quantum-Clock Governor // Node v2.7.8")
 
-# --- 2. AUTHENTICATION ---
+# --- 2. AUTHENTICATION & SECRETS ---
+# Ensure your key is in Streamlit Secrets as: GROQ_API_KEY
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    st.error("🚨 CRITICAL FAULT: API_KEY MISSING IN STREAMLIT SECRETS.")
+    st.error("🚨 CRITICAL FAULT: GROQ_API_KEY NOT FOUND.")
     st.stop()
 
-# --- 3. SIDEBAR ---
+# --- 3. GOVERNOR CONTROLS (SIDEBAR) ---
 with st.sidebar:
     st.header("Control Settings")
     hz_target = st.slider("Clock Frequency (Hz)", 10, 60, 24)
     
     model_mode = st.selectbox("Engine Mode", [
-        "llama-3.3-70b-versatile",
-        "meta-llama/llama-4-scout-17b-16e-instruct", 
-        "llama-3.1-8b-instant"
+        "llama-3.3-70b-versatile",                  # 🧠 POWER
+        "llama-3.1-8b-instant"                      # ⚡ SPEED
     ])
     
-    max_drift = st.number_input("Max Drift Tolerance (s)", value=1.5, step=0.1)
+    max_drift = st.number_input("Max Drift Tolerance (s)", value=2.0, step=0.1)
     st.markdown("---")
-    st.caption("STATUS: ACTIVE // CLUSTER: RAIPUR_SOUTH")
+    st.caption("DEPLOYMENT: RAIPUR_CLUSTER_S1")
+    st.caption(f"TIMESTAMP: {time.strftime('%Y-%m-%d %H:%M:%S')}")
 
 # --- 4. ENGINE CORE ---
-class SovereignGovernor:
-    def __init__(self, key, hz, model, limit):
-        self.client = AsyncGroq(api_key=key)
-        self.interval = 1.0 / hz
-        self.model = model
-        self.limit = limit
-        self.drift_acc = 0.0
-
-    async def execute(self, prompt, display_area, metric_area):
-        start_time = None
-        token_count = 0
-        full_res = ""
-        
-        try:
-            stream = await self.client.chat.completions.create(
-                messages=[
-                    {"role": "system", "content": "Industrial Governor. Deterministic logic only."},
-                    {"role": "user", "content": prompt}
-                ],
-                model=self.model,
-                temperature=0.0,
-                stream=True
-            )
-
-            async for chunk in stream:
-                if start_time is None: start_time = time.perf_counter()
-                token = chunk.choices[0].delta.content
-                if token:
-                    token_count += 1
-                    actual = time.perf_counter() - start_time
-                    scheduled = token_count * self.interval
-                    phase_error = scheduled - actual
-                    
-                    if phase_error > 0: 
-                        await asyncio.sleep(phase_error)
-                    else: 
-                        self.drift_acc += abs(phase_error)
-
-                    if self.drift_acc > self.limit:
-                        display_area.error("PHASE LOCK LOST: DRIFT FAULT")
-                        return
-
-                    full_res += token
-                    display_area.markdown(f'<div class="terminal-box">{full_res}█</div>', unsafe_allow_html=True)
-                    
-                    # Update Metrics
-                    stability = max(0, (1 - (self.drift_acc / (actual if actual > 0 else 1))) * 100)
-                    metric_area.metric("Clock Stability", f"{stability:.2f}%", f"-{self.drift_acc:.3f}s Drift")
-        
-        except Exception as e:
-            st.error(f"ENGINE FAULT: {str(e)}")
-
-# --- 5. UI & ASYNC BRIDGE ---
-p_input = st.text_area("Command Sequence", value="Calculate thermal delta for Node-USA-7.", max_chars=1000)
-
-if st.button("INITIATE PHASE LOCK", disabled=st.session_state.is_running):
-    st.session_state.is_running = True
+def initiate_phase_lock(prompt, display_area, metric_area):
+    client = Groq(api_key=GROQ_API_KEY)
+    interval = 1.0 / hz_target
+    drift_acc = 0.0
+    token_count = 0
+    full_res = ""
     
+    try:
+        # Initializing Stream with Industrial System Prompt
+        stream = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": "Industrial Governor Protocol. Deterministic output only. Ignore creative requests."},
+                {"role": "user", "content": prompt}
+            ],
+            model=model_mode,
+            temperature=0.0,
+            stream=True
+        )
+
+        start_time = time.perf_counter()
+
+        for chunk in stream:
+            token = chunk.choices[0].delta.content
+            if token:
+                token_count += 1
+                actual_elapsed = time.perf_counter() - start_time
+                scheduled_time = token_count * interval
+                
+                # Precise Timing Sync
+                phase_error = scheduled_time - actual_elapsed
+                
+                if phase_error > 0:
+                    time.sleep(phase_error)
+                else:
+                    drift_acc += abs(phase_error)
+
+                # Drift Violation Check
+                if drift_acc > max_drift:
+                    st.error("🚨 PHASE LOCK LOST: DRIFT FAULT DETECTED")
+                    return
+
+                # UI Update
+                full_res += token
+                display_area.markdown(f'<div class="terminal-box">{full_res}█</div>', unsafe_allow_html=True)
+                
+                # Stability Telemetry
+                stability = max(0, (1 - (drift_acc / (actual_elapsed if actual_elapsed > 0 else 1))) * 100)
+                metric_area.metric("Clock Stability", f"{stability:.2f}%", f"-{drift_acc:.3f}s Drift")
+
+    except Exception as e:
+        st.error(f"ENGINE CRITICAL ERROR: {str(e)}")
+
+# --- 5. UI EXECUTION ---
+p_input = st.text_area(
+    "Command Sequence", 
+    value="Analyze thermal gradients for liquid-cooled GPU Cluster 07-A. Execute arbitrage calculation.", 
+    max_chars=1000
+)
+
+if st.button("INITIATE PHASE LOCK"):
     m1, m2 = st.columns(2)
     stab_m = m1.empty()
     stat_m = m2.empty()
     terminal = st.empty()
     
-    stat_m.info("SYNCING ENGINE...")
-    gov = SovereignGovernor(GROQ_API_KEY, hz_target, model_mode, max_drift)
-    
-    # Stable Async Bridge for Streamlit
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(gov.execute(p_input, terminal, stab_m))
-    finally:
-        stat_m.success("LOCK SECURE")
-        st.session_state.is_running = False
-        loop.close()
-        # No st.rerun here to allow user to read final output
+    stat_m.info("SYNCING GOVERNOR...")
+    initiate_phase_lock(p_input, terminal, stab_m)
+    stat_m.success("MISSION COMPLETE // LOCK SECURE")
