@@ -1,6 +1,2 @@
 streamlit
 groq
-python-dotenv
-pandas
-pydantic
-requests
