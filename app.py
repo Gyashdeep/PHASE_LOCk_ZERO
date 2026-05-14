@@ -3,7 +3,7 @@ import asyncio
 import time
 from groq import AsyncGroq
 
-# --- INDUSTRIAL TERMINAL UI ---
+# --- UI CONFIGURATION ---
 st.set_page_config(page_title="PHASE-LOCK ZERO", page_icon="💠", layout="wide")
 
 st.markdown("""
@@ -28,28 +28,27 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 st.title("💠 PHASE-LOCK ZERO")
-st.subheader("Sovereign Quantum-Clock Governor // Node v2.6.5")
+st.subheader("Sovereign Quantum-Clock Governor // Node v2.6.7")
 
 # --- AUTHENTICATION ---
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    st.error("🚨 CRITICAL FAULT: API_KEY NOT FOUND.")
+    st.error("🚨 CRITICAL FAULT: API_KEY MISSING.")
     st.stop()
 
 with st.sidebar:
     st.header("Control Settings")
     hz_target = st.slider("Clock Frequency (Hz)", 10, 60, 24)
     
-    # PRODUCTION IDS VERIFIED MAY 14, 2026
+    # VERIFIED IDs - MAY 14, 2026
     model_mode = st.selectbox("Engine Mode", [
-        "meta-llama/llama-4-scout-17b-16e-instruct", # ⚡ HIGH-SPEED (Primary)
-        "qwen/qwen3.6-35b-a3b",                      # 🧠 LOGIC: Replacement for 32B/70B
-        "llama-3.3-70b-versatile",                   # 🛡️ STABILITY: Fallback Reasoning
-        "openai/gpt-oss-20b"                         # 🚀 THROUGHPUT: 1000+ TPS
+        "meta-llama/llama-4-scout",      # ⚡ SPEED (Llama 4 Scout)
+        "mixtral-mover-8x7b-preview",    # 🧠 LOGIC (New Mixtral Mover)
+        "llama-3.3-70b-versatile",       # 🛡️ STABLE (High-Parameter)
+        "llama-3.1-8b-instant"           # 🚀 FREQUENCY (Fastest)
     ])
     
     max_drift = st.number_input("Max Drift (s)", value=1.5, step=0.1)
-    st.caption("Status: ACTIVE // Region: USA-East-Edge")
 
 class SovereignGovernor:
     def __init__(self, key, hz, model, limit):
@@ -77,7 +76,6 @@ class SovereignGovernor:
                 token = chunk.choices[0].delta.content
                 if token:
                     token_count += 1
-                    # --- PLL CLOCK CALCULUS ---
                     actual = time.perf_counter() - start_time
                     scheduled = token_count * self.interval
                     phase_error = scheduled - actual
@@ -93,15 +91,13 @@ class SovereignGovernor:
 
                     full_res += token
                     display_area.markdown(f'<div class="terminal-box">{full_res}█</div>', unsafe_allow_html=True)
-                    
-                    # Update Metrics
                     stability = max(0, (1 - (self.drift_acc / (actual if actual > 0 else 1))) * 100)
                     metric_area.metric("Clock Stability", f"{stability:.2f}%", f"-{self.drift_acc:.3f}s Drift")
         except Exception as e:
             st.error(f"ENGINE FAULT: {str(e)}")
 
 # --- UI EXECUTION ---
-p_input = st.text_area("Command Sequence", "Monitor GPU cluster thermals for Node-USA-7. Calculate arbitrage delta.")
+p_input = st.text_area("Command Sequence", "Execute thermal governance logic for GPU Cluster Node-USA-7.")
 
 if st.button("INITIATE PHASE LOCK"):
     m1, m2 = st.columns(2)
