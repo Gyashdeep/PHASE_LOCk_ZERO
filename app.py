@@ -6,7 +6,7 @@ from groq import AsyncGroq
 # --- UI CONFIGURATION ---
 st.set_page_config(page_title="PHASE-LOCK ZERO", page_icon="⚡", layout="wide")
 
-# Industrial "Flat Terminal" CSS
+# Industrial "Flat Terminal" CSS - Optimized for Raipur Cluster Monitoring
 st.markdown("""
     <style>
     .stApp { background-color: #000000; }
@@ -53,7 +53,6 @@ st.title("💠 PHASE-LOCK ZERO")
 st.subheader("Sovereign Quantum-Clock Governor")
 
 # --- AUTHENTICATION GATE ---
-# Check secrets or environment variables
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
@@ -64,8 +63,14 @@ if not GROQ_API_KEY:
 with st.sidebar:
     st.header("Industrial Settings")
     st.markdown("🌐 **STATUS:** `AUTHENTICATED`")
-    hz_target = st.slider("Clock Frequency (Hz)", 5, 60, 15)
-    model_mode = st.selectbox("Engine Mode", ["deepseek-v4-flash", "deepseek-v4-pro"])
+    hz_target = st.slider("Clock Frequency (Hz)", 5, 60, 20)
+    
+    # Corrected IDs for May 2026 Groq Production
+    model_mode = st.selectbox("Engine Mode", [
+        "deepseek-r1-distill-qwen-32b", 
+        "deepseek-r1-distill-llama-70b"
+    ])
+    
     max_drift = st.number_input("Max Drift Threshold (s)", value=0.6, step=0.01)
 
 # --- THE GOVERNOR ENGINE ---
@@ -100,11 +105,10 @@ class StreamlitPLL:
                     scheduled = token_count * self.interval
                     phase_error = scheduled - actual
                     
-                    # Wait if ahead of schedule (Positive Phase)
+                    # Frequency Governor
                     if phase_error > 0:
                         await asyncio.sleep(phase_error)
                     else:
-                        # Accumulate Drift if lagging (Negative Phase)
                         self.drift_acc += abs(phase_error)
 
                     # --- SAFETY GATE ---
@@ -116,16 +120,16 @@ class StreamlitPLL:
                     full_response += token
                     display_area.markdown(f'<div class="terminal-box">{full_response}█</div>', unsafe_allow_html=True)
                     
-                    # Update Metrics in real-time
-                    # Stability decreases as drift accumulates relative to uptime
-                    stability = (1 - (self.drift_acc / (actual if actual > 0 else 1))) * 100
+                    # Metric Logic
+                    uptime = time.perf_counter() - start_time
+                    stability = (1 - (self.drift_acc / (uptime if uptime > 0 else 1))) * 100
                     metric_area.metric("Clock Stability", f"{max(0, stability):.2f}%", f"-{self.drift_acc:.3f}s Drift")
 
         except Exception as e:
             st.error(f"System Fault: {e}")
 
 # --- MAIN INTERFACE ---
-prompt_input = st.text_area("Industrial Instruction", "Generate thermal fan speed telemetry for a liquid-cooled GPU cluster.")
+prompt_input = st.text_area("Industrial Instruction", "Generate thermal fan speed telemetry for the Raipur GPU Cluster.")
 
 if st.button("INITIATE PHASE LOCK"):
     m_col1, m_col2 = st.columns(2)
@@ -137,7 +141,6 @@ if st.button("INITIATE PHASE LOCK"):
     
     governor = StreamlitPLL(GROQ_API_KEY, hz_target, model_mode, max_drift)
     
-    # Run the async loop
     try:
         asyncio.run(governor.run(prompt_input, terminal_container, stability_metric))
     finally:
