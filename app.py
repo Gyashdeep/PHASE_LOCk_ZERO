@@ -6,7 +6,7 @@ from groq import AsyncGroq
 # --- UI CONFIGURATION ---
 st.set_page_config(page_title="PHASE-LOCK ZERO", page_icon="⚡", layout="wide")
 
-# Industrial "Flat Terminal" CSS
+# Industrial Terminal CSS
 st.markdown("""
     <style>
     .stApp { background-color: #000000; }
@@ -42,39 +42,34 @@ st.markdown("""
         border-radius: 0px;
         width: 100%;
     }
-    .stButton>button:hover {
-        background-color: #26ff4e;
-        color: #000000;
-    }
+    .stButton>button:hover { background-color: #26ff4e; color: #000000; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("💠 PHASE-LOCK ZERO")
 st.subheader("Sovereign Quantum-Clock Governor")
 
-# --- AUTHENTICATION GATE ---
+# --- AUTHENTICATION ---
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
-
 if not GROQ_API_KEY:
-    st.error("🚨 CRITICAL FAULT: GROQ_API_KEY NOT FOUND IN SECRETS.")
+    st.error("🚨 CRITICAL FAULT: GROQ_API_KEY NOT FOUND.")
     st.stop()
 
-# --- SIDEBAR CONFIG ---
+# --- SIDEBAR: PRODUCTION REGISTRY ---
 with st.sidebar:
     st.header("Industrial Settings")
     st.markdown("🌐 **STATUS:** `AUTHENTICATED`")
     hz_target = st.slider("Clock Frequency (Hz)", 5, 60, 20)
     
-    # HARDENED PRODUCTION IDs (MAY 2026)
-    # If one fails, the LPU automatically routes to the nearest stable kernel
+    # These are the CURRENT production-active IDs on Groq LPU
     model_mode = st.selectbox("Engine Mode", [
-        "deepseek-r1-distill-llama-70b", 
-        "llama-3.3-70b-versatile",
-        "deepseek-v3"
+        "deepseek-r1",            # Unified Flagship Reasoning
+        "llama-3.1-70b-versatile", # High-stability Production
+        "llama-3.1-8b-instant"     # Low-latency Flash
     ])
     
-    max_drift = st.number_input("Max Drift Threshold (s)", value=1.5, step=0.1)
-    st.caption("Deployment: Raipur-Central Node")
+    max_drift = st.number_input("Max Drift Threshold (s)", value=2.0)
+    st.caption("Deployment Node: Raipur-Central-01")
 
 # --- THE GOVERNOR ENGINE ---
 class StreamlitPLL:
@@ -99,7 +94,7 @@ class StreamlitPLL:
             )
 
             async for chunk in stream:
-                # Clock only starts when the first byte hits the wire
+                # Synchronize clock only when the first token arrives
                 if start_time is None:
                     start_time = time.perf_counter()
 
@@ -107,7 +102,6 @@ class StreamlitPLL:
                 if token:
                     token_count += 1
                     
-                    # --- PLL CLOCK LOGIC ---
                     actual = time.perf_counter() - start_time
                     scheduled = token_count * self.interval
                     phase_error = scheduled - actual
@@ -118,22 +112,20 @@ class StreamlitPLL:
                         self.drift_acc += abs(phase_error)
 
                     if self.drift_acc > self.limit:
-                        st.error("PHASE LOCK LOST: EMERGENCY SHUTDOWN")
+                        st.error("PHASE LOCK LOST: CRITICAL DRIFT")
                         return
 
-                    # --- UI UPDATE ---
                     full_response += token
                     display_area.markdown(f'<div class="terminal-box">{full_response}█</div>', unsafe_allow_html=True)
                     
-                    # Metrics
                     stability = (1 - (self.drift_acc / (actual if actual > 0 else 1))) * 100
                     metric_area.metric("Clock Stability", f"{max(0, stability):.2f}%", f"-{self.drift_acc:.3f}s Drift")
 
         except Exception as e:
-            st.error(f"System Fault: {e}")
+            st.error(f"LPU System Fault: {e}")
 
 # --- MAIN INTERFACE ---
-prompt_input = st.text_area("Industrial Instruction", "Generate thermal fan speed telemetry for the Raipur GPU Cluster.")
+prompt_input = st.text_area("Instruction", "Generate real-time GPU thermal telemetry for Raipur cluster.")
 
 if st.button("INITIATE PHASE LOCK"):
     m_col1, m_col2 = st.columns(2)
@@ -148,4 +140,4 @@ if st.button("INITIATE PHASE LOCK"):
     try:
         asyncio.run(governor.run(prompt_input, terminal_container, stability_metric))
     finally:
-        status_metric.success("MISSION COMPLETE")
+        status_metric.success("LOCK TERMINATED")
