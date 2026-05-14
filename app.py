@@ -6,7 +6,7 @@ from groq import AsyncGroq
 # --- UI CONFIGURATION ---
 st.set_page_config(page_title="PHASE-LOCK ZERO", page_icon="⚡", layout="wide")
 
-# Updated CSS: Removed neon lighting/shadows for a flat industrial look
+# Custom CSS: Strict Industrial/Terminal (No Neon/Shadows)
 st.markdown("""
     <style>
     .stApp { background-color: #000000; }
@@ -34,18 +34,20 @@ st.markdown("""
         color: #26ff4e !important; 
         text-transform: uppercase;
         letter-spacing: 2px;
+        text-shadow: none !important;
     }
-    /* Button Styling */
     .stButton>button {
         background-color: #000000;
         color: #26ff4e;
         border: 1px solid #26ff4e;
         border-radius: 0px;
         width: 100%;
+        transition: 0.1s;
     }
     .stButton>button:hover {
         background-color: #26ff4e;
         color: #000000;
+        border: 1px solid #26ff4e;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -57,7 +59,7 @@ st.subheader("Sovereign Quantum-Clock Governor")
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 
 if not GROQ_API_KEY:
-    st.error("🚨 CRITICAL FAULT: GROQ_API_KEY NOT FOUND IN SECRETS.")
+    st.error("🚨 CRITICAL FAULT: GROQ_API_KEY NOT FOUND.")
     st.stop()
 
 # --- SIDEBAR CONFIG ---
@@ -65,8 +67,13 @@ with st.sidebar:
     st.header("Industrial Settings")
     st.markdown("🌐 **STATUS:** `AUTHENTICATED`")
     hz_target = st.slider("Clock Frequency (Hz)", 5, 60, 15)
-    # Keeping DeepSeek-V4 specific models as requested
-    model_mode = st.selectbox("Engine Mode", ["deepseek-v4-flash", "deepseek-v4-pro"])
+    
+    # Updated to active Groq model IDs to prevent 404
+    model_mode = st.selectbox("Engine Mode", [
+        "deepseek-r1-distill-llama-70b", 
+        "deepseek-v3",
+        "llama-3.3-70b-versatile"
+    ])
     max_drift = st.number_input("Max Drift Threshold (s)", value=0.6)
 
 # --- THE GOVERNOR ENGINE ---
@@ -96,7 +103,7 @@ class StreamlitPLL:
                 if token:
                     token_count += 1
                     
-                    # --- PLL CLOCK LOGIC ---
+                    # PLL CLOCK LOGIC
                     actual = time.perf_counter() - start_time
                     scheduled = token_count * self.interval
                     phase_error = scheduled - actual
@@ -106,16 +113,15 @@ class StreamlitPLL:
                     else:
                         self.drift_acc += abs(phase_error)
 
-                    # --- SAFETY GATE ---
+                    # SAFETY GATE
                     if self.drift_acc > self.limit:
                         st.error("PHASE LOCK LOST: EMERGENCY SHUTDOWN")
                         return
 
-                    # --- UI UPDATE ---
+                    # UI UPDATE
                     full_response += token
                     display_area.markdown(f'<div class="terminal-box">{full_response}█</div>', unsafe_allow_html=True)
                     
-                    # Update Metrics in real-time
                     stability = (1 - (self.drift_acc / (actual if actual > 0 else 1))) * 100
                     metric_area.metric("Clock Stability", f"{max(0, stability):.2f}%", f"-{self.drift_acc:.3f}s Drift")
 
@@ -123,7 +129,7 @@ class StreamlitPLL:
             st.error(f"System Fault: {e}")
 
 # --- MAIN INTERFACE ---
-prompt_input = st.text_area("Industrial Instruction", "Generate thermal fan speed telemetry for the Raipur GPU Cluster.")
+prompt_input = st.text_area("Industrial Instruction", "Generate thermal fan speed telemetry for the local cluster.")
 
 if st.button("INITIATE PHASE LOCK"):
     m_col1, m_col2 = st.columns(2)
