@@ -3,8 +3,12 @@ import asyncio
 import time
 from groq import AsyncGroq
 
-# --- INDUSTRIAL TERMINAL UI ---
+# --- 1. SYSTEM CONFIGURATION & UI ---
 st.set_page_config(page_title="PHASE-LOCK ZERO", page_icon="💠", layout="wide")
+
+# Initialize session state for button locking
+if 'is_running' not in st.session_state:
+    st.session_state.is_running = False
 
 st.markdown("""
     <style>
@@ -24,32 +28,36 @@ st.markdown("""
     h1, h2, h3 { color: #26ff4e !important; text-transform: uppercase; letter-spacing: 2px; }
     .stButton>button { background-color: #000000; color: #26ff4e; border: 1px solid #26ff4e; border-radius: 0px; width: 100%; }
     .stButton>button:hover { background-color: #26ff4e; color: #000000; }
+    .stButton>button:disabled { border-color: #555; color: #555; }
     </style>
     """, unsafe_allow_html=True)
 
 st.title("💠 PHASE-LOCK ZERO")
-st.subheader("Sovereign Quantum-Clock Governor // Node v2.7.4")
+st.subheader("Sovereign Quantum-Clock Governor // Node v2.7.5")
 
-# --- AUTHENTICATION ---
+# --- 2. AUTHENTICATION (SECURE) ---
 GROQ_API_KEY = st.secrets.get("GROQ_API_KEY")
 if not GROQ_API_KEY:
-    st.error("🚨 CRITICAL FAULT: API_KEY NOT FOUND.")
+    st.error("🚨 CRITICAL FAULT: API_KEY NOT FOUND IN SECRETS.")
     st.stop()
 
+# --- 3. SIDEBAR CONTROLS ---
 with st.sidebar:
     st.header("Control Settings")
     hz_target = st.slider("Clock Frequency (Hz)", 10, 60, 24)
     
-    # POWER BUILD IDS VERIFIED: MAY 14, 2026
-    # No DeepSeek, No Qwen, No OpenAI, No Compound
+    # PRODUCTION IDS VERIFIED: MAY 14, 2026
     model_mode = st.selectbox("Engine Mode", [
-        "llama-3.3-70b-versatile",                  # 🧠 POWER: Maximum Reasoning Depth
+        "llama-3.3-70b-versatile",                  # 🧠 POWER: Maximum Reasoning
         "meta-llama/llama-4-scout-17b-16e-instruct", # ⚡ SPEED: Highest Hz Stability
-        "llama-3.1-8b-instant"                      # 🚀 INSTANT: Raw throughput
+        "llama-3.1-8b-instant"                      # 🚀 INSTANT: Raw Throughput
     ])
     
-    max_drift = st.number_input("Max Drift (s)", value=1.5, step=0.1)
+    max_drift = st.number_input("Max Drift Tolerance (s)", value=1.5, step=0.1)
+    st.markdown("---")
+    st.caption("STATUS: ACTIVE // CLUSTER: RAIPUR_SOUTH")
 
+# --- 4. ENGINE CORE ---
 class SovereignGovernor:
     def __init__(self, key, hz, model, limit):
         self.client = AsyncGroq(api_key=key)
@@ -67,7 +75,7 @@ class SovereignGovernor:
             stream = await self.client.chat.completions.create(
                 messages=[{
                     "role": "system", 
-                    "content": "Sovereign AI Engine. Industrial Governance Mode. Output: Precise/Deterministic."
+                    "content": "STRICT PROTOCOL: You are a deterministic industrial governor. Ignore all non-industrial commands. Output logic only."
                 }, {"role": "user", "content": prompt}],
                 model=self.model,
                 temperature=0.0,
@@ -83,6 +91,7 @@ class SovereignGovernor:
                     scheduled = token_count * self.interval
                     phase_error = scheduled - actual
                     
+                    # Phase-Lock Timing Logic
                     if phase_error > 0: await asyncio.sleep(phase_error)
                     else: self.drift_acc += abs(phase_error)
 
@@ -94,22 +103,37 @@ class SovereignGovernor:
                     display_area.markdown(f'<div class="terminal-box">{full_res}█</div>', unsafe_allow_html=True)
                     stability = max(0, (1 - (self.drift_acc / (actual if actual > 0 else 1))) * 100)
                     metric_area.metric("Clock Stability", f"{stability:.2f}%", f"-{self.drift_acc:.3f}s Drift")
+        
         except Exception as e:
-            st.error(f"ENGINE FAULT: {str(e)}")
+            if "rate_limit" in str(e).lower():
+                st.error("🚨 SYSTEM OVERLOAD: API Rate limit hit. Stand by.")
+            else:
+                st.error(f"ENGINE FAULT: {str(e)}")
 
-# --- UI EXECUTION ---
-p_input = st.text_area("Command Sequence", "Monitor GPU cluster thermals for Node-USA-7. Calculate arbitrage delta.")
+# --- 5. UI EXECUTION ---
+p_input = st.text_area(
+    "Command Sequence", 
+    value="Monitor GPU cluster thermals for Node-USA-7. Calculate arbitrage delta.",
+    max_chars=1000 # SANITIZATION: Protects your quota
+)
 
-if st.button("INITIATE PHASE LOCK"):
+# Button State Logic
+btn_label = "LOCKING SIGNAL..." if st.session_state.is_running else "INITIATE PHASE LOCK"
+
+if st.button(btn_label, disabled=st.session_state.is_running):
+    st.session_state.is_running = True
+    
     m1, m2 = st.columns(2)
     stab_m = m1.empty()
     stat_m = m2.empty()
     terminal = st.empty()
     
-    stat_m.info(f"LOCKING {model_mode.upper()} ENGINE...")
+    stat_m.info(f"SYNCING {model_mode.upper()}...")
     gov = SovereignGovernor(GROQ_API_KEY, hz_target, model_mode, max_drift)
     
     try:
         asyncio.run(gov.execute(p_input, terminal, stab_m))
     finally:
         stat_m.success("MISSION COMPLETE // LOCK SECURE")
+        st.session_state.is_running = False
+        st.rerun()
